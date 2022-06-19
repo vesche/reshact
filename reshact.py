@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import sys
 import click
@@ -6,7 +8,7 @@ import platform
 from detect_secrets import SecretsCollection
 from detect_secrets.settings import default_settings
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 sc = SecretsCollection()
 
@@ -21,16 +23,11 @@ import json
 
 @click.command()
 @click.option(
-    '-f',
-    '--force',
-    is_flag=True
-)
-@click.option(
     '-v',
     '--version',
     is_flag=True
 )
-def main(force, version):
+def main(version):
     if version:
         print(f'v{__version__}, https://github.com/vesche/reshact')
         return
@@ -51,6 +48,7 @@ def main(force, version):
     all_secrets = dict()
     for f in HISTORY_FILES:
         file_path = os.path.join(prefix, f)
+        print(f'Processing {file_path} ...')
         if os.path.isfile(file_path):
             with default_settings():
                 sc.scan_file(file_path)
@@ -63,22 +61,29 @@ def main(force, version):
         lines_seen = list()
         for secret in secrets:
             line_data = data[secret['line_number']-1]
-
             # ignore fish false positives
             if '  when: ' in line_data:
                 continue
             # ignore lines already seen
             if line_data in lines_seen:
                 continue
-
-            print(secret['type'])
-            print(secret['filename'])
-            print(secret['line_number'])
-            print(line_data)
-            print()
-            input()
-
             lines_seen.append(line_data)
+
+        secrets_found = len(lines_seen)
+        print(f'{secrets_found} secret(s) found in {history_file_path}')
+
+        if secrets_found == 0:
+            continue
+
+        if input('reshact all (y/n)? ').lower().startswith('y'):
+            if not history_file_path.endswith('fish_history'):
+                for line in lines_seen:
+                    data = list(filter(lambda x: x != line, data))
+            else:
+                for line in lines_seen:
+                    data[:] = [i if i != line else '- cmd: [reshact]' for i in data]
+            with open(history_file_path, 'w') as f:
+                f.write('\n'.join(data) + '\n')
 
 
 if __name__ == '__main__':
