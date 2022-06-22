@@ -19,13 +19,11 @@ HISTORY_FILES = [
     '.zsh_history',
 ]
 
-import json
-
 @click.command()
 @click.option(
     '-v',
     '--version',
-    is_flag=True
+    is_flag=True,
 )
 def main(version):
     if version:
